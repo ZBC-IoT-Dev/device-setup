@@ -20,7 +20,8 @@ const unsigned long SENSOR_READ_INTERVAL_MS = 2500;   // DHT22 needs >= 2s betwe
 const unsigned long TELEMETRY_INTERVAL_MS   = 10000;  // publish every 10 seconds
 
 // ---------- MQTT TOPICS ----------
-const char* TOPIC_DISCOVERY    = "discovery/announce";
+const char* TOPIC_TELEMETRY    = "telemetry";
+const char* TOPIC_STATUS       = "status";
 const char* TOPIC_HUB_ANNOUNCE = "hub/announce";
 
 // ---------- EEPROM LAYOUT (UNO R4) ----------
@@ -236,7 +237,8 @@ void publishTelemetryIfDue() {
   lastPublishMs = now;
 
   String payload = buildTelemetryPayload();
-  bool ok = mqttClient.publish(TOPIC_DISCOVERY, payload.c_str(), false);
+  bool ok = mqttClient.publish(TOPIC_TELEMETRY, payload.c_str(), false);
+  mqttClient.publish(TOPIC_STATUS, payload.c_str(), false);
 
   if (ok) {
     Serial.print("[MQTT] Sent: ");

@@ -19,7 +19,8 @@ const bool RELAY_ACTIVE_LOW = false;
 const unsigned long STATE_HEARTBEAT_MS = 30000;
 
 // ---------- MQTT TOPICS ----------
-const char* TOPIC_DISCOVERY    = "discovery/announce";
+const char* TOPIC_TELEMETRY    = "telemetry";
+const char* TOPIC_STATUS       = "status";
 const char* TOPIC_HUB_ANNOUNCE = "hub/announce";
 
 // ---------- EEPROM LAYOUT (UNO R4) ----------
@@ -32,8 +33,7 @@ PubSubClient mqttClient(wifiClient);
 
 String deviceId;
 String rememberedHubId;
-String topicSet;
-String topicState;
+String topicCommand;
 
 unsigned long lastPublishMs   = 0;
 unsigned long lastWifiRetryMs = 0;
@@ -176,10 +176,10 @@ String buildStatePayload() {
 
 void publishState() {
   String payload = buildStatePayload();
-  bool okState = mqttClient.publish(topicState.c_str(), payload.c_str(), true);
-  bool okDiscovery = mqttClient.publish(TOPIC_DISCOVERY, payload.c_str(), false);
+  bool okTelemetry = mqttClient.publish(TOPIC_TELEMETRY, payload.c_str(), false);
+  bool okStatus = mqttClient.publish(TOPIC_STATUS, payload.c_str(), false);
 
-  if (okState && okDiscovery) {
+  if (okTelemetry && okStatus) {
     Serial.print("[MQTT] State sent: ");
     Serial.println(payload);
   } else {
@@ -215,7 +215,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  if (topicStr == topicSet) {
+  if (topicStr == topicCommand) {
     bool desired = false;
     if (!parseDesiredState(body, desired)) {
       Serial.print("[CMD] Unsupported payload: ");
@@ -281,7 +281,7 @@ bool ensureMqttConnected() {
   if (mqttClient.connect(clientId.c_str())) {
     Serial.println("[MQTT] Connected");
     mqttClient.subscribe(TOPIC_HUB_ANNOUNCE);
-    mqttClient.subscribe(topicSet.c_str());
+    mqttClient.subscribe(topicCommand.c_str());
     mqttRetryDelayMs = 1000;
     publishState();
     return true;
@@ -304,8 +304,7 @@ void setup() {
   rememberedHubId = eepromReadString(HUB_ID_ADDR, HUB_ID_MAXLEN);
   deviceId = buildStableDeviceId();
 
-  topicSet = "devices/" + deviceId + "/set";
-  topicState = "devices/" + deviceId + "/state";
+  topicCommand = "devices/" + deviceId + "/command";
 
   pinMode(LIGHT_PIN, OUTPUT);
   setLightState(false);  // safe default: light OFF at boot
@@ -323,9 +322,7 @@ void setup() {
   Serial.print("Light Pin: ");
   Serial.println(LIGHT_PIN);
   Serial.print("Command Topic: ");
-  Serial.println(topicSet);
-  Serial.print("State Topic: ");
-  Serial.println(topicState);
+  Serial.println(topicCommand);
   Serial.print("Remembered hubId: ");
   Serial.println(rememberedHubId);
 }
